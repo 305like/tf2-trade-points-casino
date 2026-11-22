@@ -1,0 +1,45 @@
+<?php
+require __DIR__.'/settings.php';require __DIR__.'/listings.php';require __DIR__.'/checkout.php';
+function check($ok){if(!$ok)throw new RuntimeException('Assertion failed');}
+function rejects($fn){try{$fn();}catch(InvalidArgumentException $e){return;}throw new RuntimeException('Expected rejection');}
+check(!purchaseFunds([['en'=>'Refined Metal']],['keys'=>0,'metal_scrap'=>1]));
+check(!purchaseFunds([['en'=>'Refined Metal']],['keys'=>1,'metal_scrap'=>0]));
+check(purchaseFunds([['en'=>'Reclaimed Metal'],['en'=>'Scrap Metal'],['en'=>'Scrap Metal']],['keys'=>0,'metal_scrap'=>5]));
+$dir=sys_get_temp_dir().'/checkout-'.bin2hex(random_bytes(6));mkdir($dir);mkdir($dir.'/users');
+$seller='76561199077147589';$buyer='76561198038759714';$other='76561198038759715';$listing=str_repeat('a',32);
+foreach([$seller,$buyer,$other] as $sid)saveTradeURL($dir,$sid,'https://steamcommunity.com/tradeoffer/new/?partner='.((int)$sid-76561197960265728).'&token=Abc_123-');
+listingWrite($dir,static function(&$rows)use($seller,$listing){$rows[$listing]=['status'=>'published','owner'=>$seller,'bot_asset'=>'500','price'=>['keys'=>1,'metal_scrap'=>5,'refined'=>'.55']];});
+rejects(fn()=>purchaseCreate($dir,$listing,$buyer));file_put_contents($dir.'/users/checkout-heartbeat',time());
+rejects(fn()=>purchaseCreate($dir,$listing,$seller));
+rejects(fn()=>listingVisibility($dir,$listing,$buyer,true));
+listingVisibility($dir,$listing,$seller,true);
+listingVisibility($dir,$listing,$seller,true);
+rejects(fn()=>purchaseCreate($dir,$listing,$buyer));
+listingVisibility($dir,$listing,$seller,false);
+$funds=static fn($id)=>array_merge([['en'=>'Mann Co. Supply Crate Key']],[['en'=>'Reclaimed Metal']],[['en'=>'Scrap Metal'],['en'=>'Scrap Metal']]);
+rejects(fn()=>purchaseCreate($dir,$listing,$buyer,static fn($id)=>[]));
+check(empty(listingRead($dir)[$listing]['orders']));
+rejects(fn()=>purchaseCreate($dir,$listing,$buyer,static function($id){throw new RuntimeException('Steam unavailable');}));
+check(empty(listingRead($dir)[$listing]['orders']));
+$o=purchaseCreate($dir,$listing,$buyer,$funds);check(purchaseCreate($dir,$listing,$buyer)===$o);
+rejects(fn()=>listingVisibility($dir,$listing,$seller,true));
+rejects(fn()=>purchaseCreate($dir,$listing,$other));
+$b=['listing'=>$listing,'code'=>$o['code']];
+rejects(fn()=>purchaseClaim($dir,$listing,$o['code'],$seller));
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'paid','buy_trade'=>'800']));
+purchaseUpdate($dir,$b+['status'=>'sent','buy_offer'=>'600']);
+purchaseUpdate($dir,$b+['status'=>'held']);
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'paid','buy_offer'=>'601','buy_trade'=>'800']));
+purchaseUpdate($dir,$b+['status'=>'paid','buy_trade'=>'800']);
+rejects(fn()=>purchaseClaim($dir,$listing,$o['code'],$buyer));
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'settling','payout_offer'=>'700']));
+$claim=purchaseClaim($dir,$listing,$o['code'],$seller);check($claim['payout_requested']);
+check(purchaseClaim($dir,$listing,$o['code'],$seller)===$claim);
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'failed']));
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'settled']));
+purchaseUpdate($dir,$b+['status'=>'settling','payout_offer'=>'700']);
+purchaseUpdate($dir,$b+['status'=>'settled','payout_trade'=>'900']);
+purchaseUpdate($dir,$b+['status'=>'settled','payout_trade'=>'900']);
+rejects(fn()=>purchaseUpdate($dir,$b+['status'=>'settled','payout_trade'=>'901']));
+rejects(fn()=>purchaseCreate($dir,$listing,$other));
+echo "PASS exclusive purchase, self-purchase rejection, idempotency, immutable receipts, no release after paid, payout completion\n";

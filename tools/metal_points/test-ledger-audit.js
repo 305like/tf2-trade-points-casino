@@ -1,0 +1,20 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {verify}=require('./ledger-audit');
+const row={code:'a',owner:'seller',asset:'1',bot_asset:'2',status:'published',orders:[],returns:[]};
+const state={shop:{a:{...row,done:true}}};
+verify(state,[row]);
+assert.throws(()=>verify({},[row]));assert.throws(()=>verify(state,[]));
+assert.throws(()=>verify(state,[{...row,owner:'attacker'}]));
+assert.throws(()=>verify(state,[{...row,bot_asset:'3'}]));
+const pending={code:'b',owner:'seller',asset:'4',status:'queued'};verify(state,[row,pending]);
+const order={code:'o',listing:'a',seller:'seller',buyer:'buyer',asset:'2',price:{keys:1,metal_scrap:0},status:'queued'};
+verify(state,[{...row,orders:[order]}]);
+assert.throws(()=>verify(state,[{...row,orders:[{...order,seller:'attacker'}]}]));
+assert.throws(()=>verify(state,[{...row,orders:[{...order,status:'paid',buy_offer:'20'}]}]));
+state.purchases={o:{...order,buy_started:true,buy_offer:'20'}};
+verify(state,[{...row,orders:[{...order,status:'sent',buy_offer:'20'}]}]);
+assert.throws(()=>verify(state,[{...row,orders:[{...order,price:{keys:0,metal_scrap:1}}]}]));
+// A crash after web publication but before the final local done flag remains recoverable.
+verify({shop:{a:{code:'a',owner:'seller',asset:'1',bot_asset:'2'}}},[row]);
+console.log('PASS custody ownership, asset, missing ledger, immutable purchase identity/price and publication crash boundary');
