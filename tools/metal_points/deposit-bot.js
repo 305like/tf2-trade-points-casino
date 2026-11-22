@@ -50,7 +50,7 @@ async function shopApi(body){
  assert.equal(r.status,200);const result=await r.json();assert.equal(result.ok,true);return result;
 }
 async function verifyLedger(){
- try{const {rows}=await shopApi({action:'ledger'});require('./ledger-audit').verify(state,rows);}
+ try{const {rows}=await shopApi({action:'ledger'});await checkout.recoverCompletedReceipts(rows);require('./ledger-audit').verify(state,rows);}
  catch(e){ready=false;throw e;}
 }
 const shop=require('./shop-intake').create({state,save,api:shopApi,manager,call,community,identitySecret:config.identitySecret,hasTradeHold,log});

@@ -61,6 +61,17 @@ async function scenario({cancel=false,uncertain=false,resume=false,insufficient=
  await shop.tick();assert.equal(sends,2);
  offers['101'].state=3;offers['101'].tradeID='201';await shop.tick();await shop.tick();
  assert.equal(state.purchases[request.code].status,'settled');assert.equal(sends,2);assert.equal(updates.filter(b=>b.status==='settled').length,1);
+ assert.equal(state.purchases[request.code].payout_trade,'201','Persist the payout trade ID in the bot ledger');
+ const web={...state.purchases[request.code]};delete state.purchases[request.code].payout_trade;
+ assert.equal(await shop.recoverCompletedReceipts([{orders:[web]}]),1);
+ assert.equal(state.purchases[request.code].payout_trade,'201');
+ assert.equal(await shop.recoverCompletedReceipts([{orders:[web]}]),0);assert.equal(sends,2);
+ delete state.purchases[request.code].payout_trade;
+ await assert.rejects(shop.recoverCompletedReceipts([{orders:[{...web,payout_trade:'999'}]}]));
+ assert.equal(state.purchases[request.code].payout_trade,undefined);
+ offers['101'].state=11;await assert.rejects(shop.recoverCompletedReceipts([{orders:[web]}]));
+ assert.equal(state.purchases[request.code].payout_trade,undefined);offers['101'].state=3;
+ await shop.recoverCompletedReceipts([{orders:[web]}]);assert.equal(sends,2);
  assert(!shop.reserved().has('20'));
 }
 (async()=>{

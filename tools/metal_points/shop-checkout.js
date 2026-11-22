@@ -50,7 +50,25 @@ function create({state,save,api,manager,call,community,identitySecret,hasTradeHo
   assert(intake?.done&&intake.status==='published'&&intake.owner===row.seller&&intake.bot_asset===row.asset,'Purchase custody owner/listing/asset mismatch');
  }
  async function update(row,status,extra={}){
-  await api({action:'purchase_update',listing:row.listing,code:row.code,status,...extra});row.status=status;save();
+  await api({action:'purchase_update',listing:row.listing,code:row.code,status,...extra});Object.assign(row,extra,{status});save();
+ }
+ async function recoverCompletedReceipts(rows){
+  // Repair only the old missing local payout receipt, after a fresh Steam check.
+  // Never send an offer or infer completion from the web status alone.
+  const orders=new Map(rows.flatMap(r=>r.orders||[]).map(o=>[o.code,o]));
+  let count=0;
+  for(const row of Object.values(state.purchases)){
+   if(row.status!=='settled'||row.payout_trade)continue;
+   const web=orders.get(row.code);assert(web&&web.status==='settled','Settled purchase missing on web');
+   for(const key of ['listing','seller','buyer','asset','buy_offer','buy_trade','payout_offer'])assert(row[key]&&row[key]===web[key],'Completed purchase identity differs');
+   assert.deepEqual(row.price,web.price);assert(numeric(web.payout_trade),'Web payout receipt missing');custody(row);
+   const [offer]=await call(manager,'getOffer',row.payout_offer);
+   assert(offer.state===3&&offer.tradeID===web.payout_trade,'Steam payout completion differs');
+   const [status,,received,given]=await call(offer,'getExchangeDetails');
+   receipt(offer,row,true,status,received,given);
+   row.payout_trade=offer.tradeID;save();count++;log('Completed payout receipt recovered from Steam; no offer sent');
+  }
+  return count;
  }
  async function process(offer){
   if(!offer.isOurOffer)return false;
@@ -154,6 +172,6 @@ function create({state,save,api,manager,call,community,identitySecret,hasTradeHo
    }catch{log('Purchase/settlement reconciliation pending');}
   }
  }
- return {process,tick,reserved,uncertain,approvals};
+ return {process,tick,reserved,uncertain,approvals,recoverCompletedReceipts};
 }
 module.exports={create,validate,selectPayment,identities,checkOffer,receipt,approval};

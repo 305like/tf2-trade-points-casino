@@ -17,4 +17,8 @@ verify(state,[{...row,orders:[{...order,status:'sent',buy_offer:'20'}]}]);
 assert.throws(()=>verify(state,[{...row,orders:[{...order,price:{keys:0,metal_scrap:1}}]}]));
 // A crash after web publication but before the final local done flag remains recoverable.
 verify({shop:{a:{code:'a',owner:'seller',asset:'1',bot_asset:'2'}}},[row]);
+const settled={...order,status:'settled',buy_offer:'20',buy_trade:'21',payout_offer:'22',payout_trade:'23'};
+state.purchases.o={...settled};verify(state,[{...row,orders:[settled]}]);
+delete state.purchases.o.payout_trade;
+assert.throws(()=>verify(state,[{...row,orders:[settled]}]),/receipt missing/);
 console.log('PASS custody ownership, asset, missing ledger, immutable purchase identity/price and publication crash boundary');

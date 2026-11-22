@@ -14,8 +14,8 @@ async function main() {
     }
     assert.equal(method,'getInventoryContents');throw Error('Inventory unavailable');
   };
-  const fn=new Function('ownerChat','ready','state','call','manager','processOffer','failure','Manager','api','dispatch','save','hasTradeHold','log','shop','checkout','returns','ledgerBackup','dir','verifyLedger',body+';return reconcile;')(
-    {tick:async()=>{}},true,state,call,{},async o=>seen.push(o.id),()=>{},{EOfferFilter:{ActiveOnly:1,All:3}},async()=>({requests:[{}]}),async()=>{throw Error('must not send');},()=>{},()=>{},()=>{},{tick:async()=>{},reserved:()=>new Set(),isBusy:()=>false},{tick:async()=>{},approvals:()=>[],uncertain:()=>false,reserved:()=>new Set()},{tick:async()=>{},approvals:()=>[]},{daily(){}},'fixture',async()=>{});
+  const fn=new Function('ownerChat','ready','state','call','manager','processOffer','failure','Manager','api','dispatch','save','hasTradeHold','log','shop','checkout','returns','ledgerBackup','dir','verifyLedger','finance',body+';return reconcile;')(
+    {tick:async()=>{}},true,state,call,{},async o=>seen.push(o.id),()=>{},{EOfferFilter:{ActiveOnly:1,All:3}},async()=>({requests:[{}]}),async()=>{throw Error('must not send');},()=>{},()=>{},()=>{},{tick:async()=>{},reserved:()=>new Set(),isBusy:()=>false},{tick:async()=>{},approvals:()=>[],uncertain:()=>false,reserved:()=>new Set()},{tick:async()=>{},approvals:()=>[]},{daily(){}},'fixture',async()=>{},{tick:async()=>{},reserved:()=>new Set()});
   await fn();await fn();
   assert.deepEqual(seen,['9450651373','9450651373']);
   console.log('Reconcile: persisted offer recovered without state.offers or inventory; historical cutoff explicit PASS');

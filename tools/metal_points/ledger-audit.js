@@ -19,6 +19,7 @@ function verify(state,rows){
     for(const key of ['listing','seller','buyer','asset'])assert(p[key]===order[key],'Purchase ledger mismatch');
     assert.deepEqual(p.price,order.price,'Purchase price changed');
     for(const key of ['buy_offer','payout_offer','buy_trade','payout_trade'])if(p[key]&&order[key])assert(p[key]===order[key],'Purchase receipt mismatch');
+    if(p.status==='settled'&&order.status==='settled')for(const key of ['buy_offer','buy_trade','payout_offer','payout_trade'])assert(p[key]&&p[key]===order[key],'Completed purchase receipt missing or different');
    }else assert(order.status==='queued'&&!order.buy_offer,'Purchase ledger missing locally');
   }
   for(const ret of r.returns||[]){
